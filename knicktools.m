@@ -22,7 +22,7 @@ function varargout = knicktools(varargin)
 
 % Edit the above text to modify the response to help knicktools
 
-% Last Modified by GUIDE v2.5 05-Oct-2016 11:22:53
+% Last Modified by GUIDE v2.5 07-Oct-2016 13:57:05
 
 % Begin initialization code - DO NOT EDIT
 gui_Singleton = 1;
@@ -58,6 +58,10 @@ handles.catchments_shapefile = [];
 handles.dem = [];
 handles.dem_obj = [];
 handles.flow_acc = [];
+handles.current_catchment = [];
+handles.text_handles = [];
+handles.catchment_handles = [];
+handles.catchment_dems = [];
 
 % Update handles structure
 guidata(hObject, handles);
@@ -76,23 +80,197 @@ function varargout = knicktools_OutputFcn(hObject, eventdata, handles)
 % Get default command line output from handles structure
 varargout{1} = handles.output;
 
+function knicktools_PopulateList(handles, attr)
+    S = shaperead(handles.catchments_shapefile);
+    disp(attr)
+    
+    shape_attr = fieldnames(S);
+    disp(shape_attr)
+    id_n = find(strcmpi(shape_attr,attr));
+    
+    disp(id_n)
+    af = shape_attr{id_n};
+
+    attribs_list = {};
+    for i = 1:numel(S)
+        attribs_list = [attribs_list; num2str(S(i).(af))];
+    end
+    
+    set(handles.catchment_lists, 'String', attribs_list);
+    
+
 function knicktools_ProcessDEM(handles)
     handles.dem_obj = GRIDobj(handles.dem);
     guidata(handles.output, handles);
-    knicktools_CatchmentOverviewUpdate(handles);
+    knicktools_CatchmentOverviewUpdate(handles, 1);
 
+function knicktools_ProcessCatchments(handles)
     
-function knicktools_CatchmentOverviewUpdate(handles)
-	
     axes(handles.catchment_overview);
     
-    if isempty(handles.dem) < 1
-        h = imagesc(handles.dem_obj);
+    S = shaperead(handles.catchments_shapefile);
+    
+    catchment_handles = {};
+    for i = 1:numel(S)
+       c = S(i);
+       ch = mapshow(c.X,c.Y, 'DisplayType', 'polygon');
+       set(ch, 'FaceColor', [0.5 1.0 0.5]);
+       set(ch, 'FaceAlpha', .7);
+       catchment_handles = [catchment_handles; ch];
+    end
+    handles.catchment_handles = catchment_handles;
+    
+    handles.catchment_dems = cell(numel(S), 1);
+    
+    text_handles = {};
+    for i = 1:numel(S)
+       c = S(i);
+       c1 = c.BoundingBox(1,:);
+       c2 = c.BoundingBox(2,:);
+       cc = [(c1(1)+c2(1))/2, (c1(2)+c2(2))/2];
+       t = text(cc(1),cc(2),num2str(c.ID));
+       set(t, 'FontSize', 7);
+       text_handles = [text_handles; t];
     end
     
-    if isempty(handles.catchments_shapefile) < 1
-        geoshow(handles.catchments_shapefile,'FaceColor',[0.5 1.0 0.5])
-    end    
+    handles.text_handles = text_handles;
+
+	shape_attr = fieldnames(S);
+    id_n = find(strcmpi(shape_attr,'ID'));
+
+    attribs = shape_attr(id_n:end);
+    set(handles.catchment_id_chooser, 'String', attribs);
+    
+    guidata(handles.output, handles);
+    
+function knicktools_cropDEM(handles, S, idx)
+
+    DEM = handles.dem_obj;
+    
+    if isempty(handles.dem_obj) < 1
+        poly = S(idx);
+
+        polyarea(poly.X, poly.Y)
+
+        [r,c] = coord2sub(DEM,poly.X,poly.Y);
+
+        %Remove NaNs
+        n = find(isnan(r));
+        r(n) = [];
+        c(n) = [];
+
+        % convert points outside catchment poly to NaN
+        mask = poly2mask(c,r,DEM.size(1),DEM.size(2));
+
+        DEM.Z(find(mask==0)) = NaN;
+
+        cDEM = crop(DEM, mask);
+
+        handles.catchment_dems{idx} = cDEM;
+        
+        knicktools_previewPlot(handles, handles.current_catchment);
+
+        guidata(handles.output, handles);
+    end
+    
+    
+function knicktools_previewPlot(handles, idx)
+
+    axes(handles.profile_preview);
+    
+    cDEM = handles.catchment_dems{idx};
+    FD = FLOWobj(cDEM);
+
+    % Flow Accumulation
+    A = flowacc(FD);
+
+    % Streams
+    S1 = STREAMobj(FD,A>300);
+    S1 = klargestconncomps(S1);
+    T = trunk(S1);
+    
+
+    axis normal
+    cla;
+    plotdz(T,cDEM);
+    title('Stream profile elevation');
+       
+    
+function knicktools_CatchmentOverviewTextUpdate(handles, attr)
+    axes(handles.catchment_overview);
+    
+    S = shaperead(handles.catchments_shapefile);
+    
+     for k = 1:numel(handles.text_handles)
+        delete(handles.text_handles(k))
+     end
+     
+     text_handles = {};
+     
+     for i = 1:numel(S)
+        c = S(i);
+        c1 = c.BoundingBox(1,:);
+        c2 = c.BoundingBox(2,:);
+        cc = [(c1(1)+c2(1))/2, (c1(2)+c2(2))/2];
+        t = text(cc(1),cc(2),num2str(c.(attr)));
+        set(t, 'FontSize', 7);
+        text_handles = [text_handles; t];
+     end
+    
+     handles.text_handles = text_handles;
+     guidata(handles.output, handles);
+    
+function knicktools_CatchmentOverviewUpdate(handles, full_refresh)
+	
+    axes(handles.catchment_overview);
+    cla;
+    
+    if full_refresh > 0 
+        if isempty(handles.dem_obj) < 1
+            h = imagesc(handles.dem_obj);
+        else
+            if isempty(handles.dem_obj) < 1
+                handles.dem_obj = GRIDobj(handles.dem);
+                h = imagesc(handles.dem_obj);
+            end
+        end
+
+        if isempty(handles.catchments_shapefile) < 1
+            geoshow(handles.catchments_shapefile,'FaceColor',[0.5 1.0 0.5])
+        end
+    end
+    
+    guidata(handles.output, handles);
+
+function knicktools_SelectCatchment(handles)
+    axes(handles.catchment_overview);
+    
+    if isempty(handles.current_catchment) < 1
+         for k = 1:numel(handles.catchment_handles)
+            if k == handles.current_catchment
+                set(handles.catchment_handles(k), 'FaceColor', [1 0 0]);
+                set(handles.catchment_handles(k), 'FaceAlpha', 1);
+            else
+               set(handles.catchment_handles(k), 'FaceColor', [0.5 1.0 0.5]);
+               set(handles.catchment_handles(k), 'FaceAlpha', .7);
+            end
+         end
+         
+        if isempty(handles.dem_obj) < 1
+            
+            S = shaperead(handles.catchments_shapefile);
+  
+            if isempty(handles.catchment_dems{handles.current_catchment}) > 0
+                knicktools_cropDEM(handles, S, handles.current_catchment);
+            else
+                knicktools_previewPlot(handles, handles.current_catchment);
+            end
+            
+        end    
+    end
+    
+    
+    
 % --------------------------------------------------------------------
 function config_options_Callback(hObject, eventdata, handles)
 % hObject    handle to config_options (see GCBO)
@@ -122,8 +300,10 @@ function catchment_lists_Callback(hObject, eventdata, handles)
 
 % Hints: contents = cellstr(get(hObject,'String')) returns catchment_lists contents as cell array
 %        contents{get(hObject,'Value')} returns selected item from catchment_lists
-
-
+    handles.current_catchment = get(hObject,'Value');
+    guidata(handles.output, handles);
+    knicktools_SelectCatchment(handles);
+    
 % --- Executes during object creation, after setting all properties.
 function catchment_lists_CreateFcn(hObject, eventdata, handles)
 % hObject    handle to catchment_lists (see GCBO)
@@ -168,7 +348,7 @@ function select_catchments_Callback(hObject, eventdata, handles)
 [filename,pathname] = uigetfile('*.shp', 'Select catchment shapefile');
 handles.catchments_shapefile = fullfile(pathname, filename);
 guidata(handles.output, handles);
-knicktools_CatchmentOverviewUpdate(handles);
+knicktools_ProcessCatchments(handles);
 
 function dem_path_Callback(hObject, eventdata, handles)
 % hObject    handle to dem_path (see GCBO)
@@ -243,6 +423,9 @@ function knickpoint_analysis_Callback(hObject, eventdata, handles)
 % hObject    handle to knickpoint_analysis (see GCBO)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    structure with handles and user data (see GUIDATA)
+    if isempty(handles.current_catchment) < 1
+        kp_menu(handles.catchment_dems{handles.current_catchment});
+    end
 
 
 % --- Executes on selection change in catchment_id_chooser.
@@ -253,7 +436,12 @@ function catchment_id_chooser_Callback(hObject, eventdata, handles)
 
 % Hints: contents = cellstr(get(hObject,'String')) returns catchment_id_chooser contents as cell array
 %        contents{get(hObject,'Value')} returns selected item from catchment_id_chooser
-
+    val = get(hObject, 'Value');
+    opts = get(hObject, 'String');
+    if strcmp(val, 'Identification Attribute') < 1
+        knicktools_PopulateList(handles, opts{val});
+        knicktools_CatchmentOverviewTextUpdate(handles, opts{val});
+    end
 
 % --- Executes during object creation, after setting all properties.
 function catchment_id_chooser_CreateFcn(hObject, eventdata, handles)
@@ -266,3 +454,10 @@ function catchment_id_chooser_CreateFcn(hObject, eventdata, handles)
 if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
     set(hObject,'BackgroundColor','white');
 end
+
+
+% --- Executes on button press in processAllCatchments.
+function processAllCatchments_Callback(hObject, eventdata, handles)
+% hObject    handle to processAllCatchments (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
