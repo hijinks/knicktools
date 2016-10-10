@@ -22,7 +22,7 @@ function varargout = knicktools(varargin)
 
 % Edit the above text to modify the response to help knicktools
 
-% Last Modified by GUIDE v2.5 07-Oct-2016 13:57:05
+% Last Modified by GUIDE v2.5 10-Oct-2016 16:14:10
 
 % Begin initialization code - DO NOT EDIT
 gui_Singleton = 1;
@@ -57,18 +57,30 @@ handles.output = hObject;
 handles.catchments_shapefile = [];
 handles.dem = [];
 handles.dem_obj = [];
+handles.dam_handle = [];
 handles.flow_acc = [];
 handles.current_catchment = [];
 handles.text_handles = [];
 handles.catchment_handles = [];
 handles.catchment_dems = [];
+handles.backdrop_raster = [];
+handles.backdrop_handle = [];
+handles.view_mode = 'dem';
 
+handles.catchment_overview = knicktools_createMapOverview(handles);
+disp(handles)
 % Update handles structure
 guidata(hObject, handles);
 
 % UIWAIT makes knicktools wait for user response (see UIRESUME)
 % uiwait(handles.figure1);
 
+
+function overview = knicktools_createMapOverview(handles)
+    overview = axesm('MapProjection','utm');
+    set(overview, 'Position',[7.8 5.615 152.2 44.692], 'Tag',...
+        'catchment_overview', 'Box', 'on', 'BoxStyle', 'full','Parent', ...
+        handles.output);
 
 % --- Outputs from this function are returned to the command line.
 function varargout = knicktools_OutputFcn(hObject, eventdata, handles) 
@@ -101,8 +113,25 @@ function knicktools_PopulateList(handles, attr)
 
 function knicktools_ProcessDEM(handles)
     handles.dem_obj = GRIDobj(handles.dem);
+    handles.view_mode = 'dem';
     guidata(handles.output, handles);
     knicktools_CatchmentOverviewUpdate(handles, 1);
+    
+
+
+function knicktools_ProcessBackdrop(handles, raster_path)
+
+[raster, D] = geotiffread(raster_path);
+R = raster(:,:,1);
+G = raster(:,:,2);
+B = raster(:,:,3);
+
+I = cat(3,R,G,B);
+J = imadjust(I,stretchlim(I,[.3; .95]));
+handles.backdrop_raster = {J, D};
+handles.view_mode = 'backdrop';
+guidata(handles.output, handles);
+knicktools_CatchmentOverviewUpdate(handles, 1);
 
 function knicktools_ProcessCatchments(handles)
     
@@ -221,17 +250,22 @@ function knicktools_CatchmentOverviewTextUpdate(handles, attr)
      guidata(handles.output, handles);
     
 function knicktools_CatchmentOverviewUpdate(handles, full_refresh)
-	
     axes(handles.catchment_overview);
     cla;
     
-    if full_refresh > 0 
-        if isempty(handles.dem_obj) < 1
-            h = imagesc(handles.dem_obj);
-        else
+    if full_refresh > 0
+        if strcmp(handles.view_mode, 'dem') > 0
             if isempty(handles.dem_obj) < 1
-                handles.dem_obj = GRIDobj(handles.dem);
-                h = imagesc(handles.dem_obj);
+                handles.dem_handle = imagesc(handles.dem_obj);
+            else
+                if isempty(handles.dem_obj) < 1
+                    handles.dem_obj = GRIDobj(handles.dem);
+                    handles.dem_handle = imagesc(handles.dem_obj);
+                end
+            end
+        else
+            if isempty(handles.backdrop_raster) < 1
+                handles.backdrop_handle = mapshow(handles.backdrop_raster{1}, handles.backdrop_raster{2});
             end
         end
 
@@ -269,7 +303,7 @@ function knicktools_SelectCatchment(handles)
         end    
     end
     
-    
+   
     
 % --------------------------------------------------------------------
 function config_options_Callback(hObject, eventdata, handles)
@@ -347,6 +381,7 @@ function select_catchments_Callback(hObject, eventdata, handles)
 % handles    structure with handles and user data (see GUIDATA)
 [filename,pathname] = uigetfile('*.shp', 'Select catchment shapefile');
 handles.catchments_shapefile = fullfile(pathname, filename);
+set(handles.catchment_path,'String',filename)
 guidata(handles.output, handles);
 knicktools_ProcessCatchments(handles);
 
@@ -378,6 +413,7 @@ function select_dem_Callback(hObject, eventdata, handles)
 % handles    structure with handles and user data (see GUIDATA)
 [filename,pathname] = uigetfile('*.tif', 'Select DEM');
 handles.dem = fullfile(pathname, filename);
+set(handles.dem_path,'String',filename)
 guidata(handles.output, handles);
 knicktools_ProcessDEM(handles);
 
@@ -409,7 +445,10 @@ function select_backdrop_Callback(hObject, eventdata, handles)
 % hObject    handle to select_backdrop (see GCBO)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    structure with handles and user data (see GUIDATA)
-
+[filename,pathname] = uigetfile('*.tif', 'Select raster backdrop');
+raster_path = fullfile(pathname, filename);
+set(handles.backdrop_path,'String',filename)
+knicktools_ProcessBackdrop(handles, raster_path);
 
 % --- Executes on button press in highlight_catchment.
 function highlight_catchment_Callback(hObject, eventdata, handles)
@@ -461,3 +500,47 @@ function processAllCatchments_Callback(hObject, eventdata, handles)
 % hObject    handle to processAllCatchments (see GCBO)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    structure with handles and user data (see GUIDATA)
+
+
+% --- Executes on button press in dem_viewchooser.
+function dem_viewchooser_Callback(hObject, eventdata, handles)
+% hObject    handle to dem_viewchooser (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+
+
+% --- Executes on button press in backdrop_viewchooser.
+function backdrop_viewchooser_Callback(hObject, eventdata, handles)
+% hObject    handle to backdrop_viewchooser (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+
+
+% --- Executes on button press in projection_chooser.
+function projection_chooser_Callback(hObject, eventdata, handles)
+% hObject    handle to projection_chooser (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+axes(handles.catchment_overview);
+axesmui
+
+function edit4_Callback(hObject, eventdata, handles)
+% hObject    handle to edit4 (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+
+% Hints: get(hObject,'String') returns contents of edit4 as text
+%        str2double(get(hObject,'String')) returns contents of edit4 as a double
+
+
+% --- Executes during object creation, after setting all properties.
+function edit4_CreateFcn(hObject, eventdata, handles)
+% hObject    handle to edit4 (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    empty - handles not created until after all CreateFcns called
+
+% Hint: edit controls usually have a white background on Windows.
+%       See ISPC and COMPUTER.
+if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
+    set(hObject,'BackgroundColor','white');
+end

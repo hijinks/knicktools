@@ -22,7 +22,7 @@ function varargout = kp_menu(varargin)
 
 % Edit the above text to modify the response to help kp_menu
 
-% Last Modified by GUIDE v2.5 22-Sep-2016 13:34:21
+% Last Modified by GUIDE v2.5 10-Oct-2016 14:33:48
 
 % Begin initialization code - DO NOT EDIT
 gui_Singleton = 1;
@@ -156,7 +156,7 @@ axes(handles.slope_axes);
 cla(handles.catchment_axes,'reset')
 axes(handles.catchment_axes);
 
-plot3d(handles.S1, handles.cDEM);
+plot(handles.S1);
 hold on;
 
 plot(handles.T, 'k-', 'LineWidth', 2);
@@ -170,4 +170,57 @@ for k=1:length(x)
 
     hold on;
     plot(coordX, coordY, 'rd');
+end
+
+
+% --------------------------------------------------------------------
+function Untitled_1_Callback(hObject, eventdata, handles)
+% hObject    handle to Untitled_1 (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+
+
+
+function name_box_Callback(hObject, eventdata, handles)
+% hObject    handle to name_box (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+
+% Hints: get(hObject,'String') returns contents of name_box as text
+%        str2double(get(hObject,'String')) returns contents of name_box as a double
+
+
+% --- Executes during object creation, after setting all properties.
+function name_box_CreateFcn(hObject, eventdata, handles)
+% hObject    handle to name_box (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    empty - handles not created until after all CreateFcns called
+
+% Hint: edit controls usually have a white background on Windows.
+%       See ISPC and COMPUTER.
+if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
+    set(hObject,'BackgroundColor','white');
+end
+
+
+
+function notes_box_Callback(hObject, eventdata, handles)
+% hObject    handle to notes_box (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+
+% Hints: get(hObject,'String') returns contents of notes_box as text
+%        str2double(get(hObject,'String')) returns contents of notes_box as a double
+
+
+% --- Executes during object creation, after setting all properties.
+function notes_box_CreateFcn(hObject, eventdata, handles)
+% hObject    handle to notes_box (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    empty - handles not created until after all CreateFcns called
+
+% Hint: edit controls usually have a white background on Windows.
+%       See ISPC and COMPUTER.
+if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
+    set(hObject,'BackgroundColor','white');
 end
