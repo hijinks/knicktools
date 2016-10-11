@@ -56,6 +56,11 @@ function kp_menu_OpeningFcn(hObject, eventdata, handles, varargin)
 handles.output = hObject;
 
 handles.dem = varargin{1};
+handles.poly = varargin{2};
+handles.identifier = varargin{3};
+handles.projection = varargin{4};
+
+handles.knickpoints = [];
 
 FD = FLOWobj(handles.dem);
 
@@ -95,6 +100,34 @@ guidata(hObject, handles);
 % UIWAIT makes kp_menu wait for user response (see UIRESUME)
 % uiwait(handles.figure1);
 
+function process_knickpoints(handles, output_location)
+    s = size(handles.knickpoints);
+    stream_objs = {};
+    
+    for k = 1:s(1)
+       kd = handles.knickpoints(k, :);
+       if k < 2
+            % Starting knickpoint
+            S = modify(handles.T,'distance', [0, kd(5)]);
+            stream_objs = [stream_objs; S];
+            
+       elseif k == max(s(1))
+            % Last knickpoint
+            kd2 = handles.knickpoints(k-1, :);
+            S1 = modify(handles.T,'distance', [kd2(5), kd(5)]);
+            disp(handles.distance(end))
+            S2 = modify(handles.T,'distance', [kd(5), max(handles.distance)]);
+            stream_objs = [stream_objs; S1; S2];
+       else
+            kd2 = handles.knickpoints(k-1, :);
+            S = modify(handles.T,'distance', [kd2(5), kd(5)]);
+            stream_objs = [stream_objs; S];
+       end
+    end
+    
+    stream_profiler(handles.poly, handles.dem, stream_objs, ...
+        handles.identifier, output_location, handles.knickpoints, ...
+        handles.projection, [1 1 1 1])
 
 % --- Outputs from this function are returned to the command line.
 function varargout = kp_menu_OutputFcn(hObject, eventdata, handles) 
@@ -112,7 +145,10 @@ function save_btn_Callback(hObject, eventdata, handles)
 % hObject    handle to save_btn (see GCBO)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    structure with handles and user data (see GUIDATA)
-
+if isempty(handles.knickpoints) < 1
+    output_location = uigetdir;
+    process_knickpoints(handles, output_location);
+end
 
 % --- Executes on selection change in listbox1.
 function listbox1_Callback(hObject, eventdata, handles)
@@ -149,11 +185,14 @@ function select_knickpoints_Callback(hObject, eventdata, handles)
 % hObject    handle to select_knickpoints (see GCBO)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    structure with handles and user data (see GUIDATA)
+cla(handles.slope_axes,'reset')
 axes(handles.slope_axes);
+h = plotdz(handles.T, handles.dem);
 
-[x,y]= getpts
+[x,y]= getpts;
 
-cla(handles.catchment_axes,'reset')
+cla(handles.catchment_axes,'reset');
+
 axes(handles.catchment_axes);
 
 plot(handles.S1);
@@ -161,19 +200,36 @@ hold on;
 
 plot(handles.T, 'k-', 'LineWidth', 2);
 
+kp_data = [];
+
 for k=1:length(x)
 	x1 = x(k);
-	[~,xI] = min(abs(handles.distance'-x1));
+	y1 = y(k);
+
+    xdiff = abs(handles.distance'-x1);
+    ydiff = abs(handles.elevation'-y1);
+    
+    [~, xI] = min(xdiff+ydiff);
+    
+    axes(handles.slope_axes);
+    hold on;
+    
+    plot(handles.distance(xI), handles.elevation(xI), 'rd');
+    
     lx = length(handles.T.x);
     coordX = handles.T.x(lx-xI);
     coordY = handles.T.y(lx-xI);
-
+    axes(handles.catchment_axes);
+    
+    kp_data = [kp_data; [coordX, coordY, lx-xI, xI, handles.distance(xI), handles.elevation(xI)]];
+    
     hold on;
+    
     plot(coordX, coordY, 'rd');
 end
 
-save('kp_capture.mat');
-
+handles.knickpoints = kp_data;
+guidata(handles.output, handles);
 
 % --------------------------------------------------------------------
 function Untitled_1_Callback(hObject, eventdata, handles)
