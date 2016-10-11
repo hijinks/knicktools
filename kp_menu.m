@@ -172,6 +172,8 @@ for k=1:length(x)
     plot(coordX, coordY, 'rd');
 end
 
+save('kp_capture.mat');
+
 
 % --------------------------------------------------------------------
 function Untitled_1_Callback(hObject, eventdata, handles)

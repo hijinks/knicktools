@@ -82,6 +82,11 @@ function overview = knicktools_createMapOverview(handles)
         'catchment_overview', 'Box', 'on', 'BoxStyle', 'full','Parent', ...
         handles.output);
 
+    overview = axesm('MapProjection','utm');
+    set(overview, 'Position',[7.8 5.615 152.2 44.692], 'Tag',...
+        'catchment_overview', 'Box', 'on', 'BoxStyle', 'full','Parent', ...
+        handles.output);
+    
 % --- Outputs from this function are returned to the command line.
 function varargout = knicktools_OutputFcn(hObject, eventdata, handles) 
 % varargout  cell array for returning output args (see VARARGOUT);
@@ -205,7 +210,7 @@ function knicktools_cropDEM(handles, S, idx)
     
 function knicktools_previewPlot(handles, idx)
 
-    axes(handles.profile_preview);
+    
     
     cDEM = handles.catchment_dems{idx};
     FD = FLOWobj(cDEM);
@@ -219,8 +224,8 @@ function knicktools_previewPlot(handles, idx)
     T = trunk(S1);
     
 
-    axis normal
-    cla;
+    axes(handles.profile_preview);
+    cla(handles.profile_preview);
     plotdz(T,cDEM);
     title('Stream profile elevation');
        
