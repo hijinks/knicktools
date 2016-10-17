@@ -22,7 +22,7 @@ function varargout = knicktools(varargin)
 
 % Edit the above text to modify the response to help knicktools
 
-% Last Modified by GUIDE v2.5 10-Oct-2016 16:14:10
+% Last Modified by GUIDE v2.5 11-Oct-2016 14:08:04
 
 % Begin initialization code - DO NOT EDIT
 gui_Singleton = 1;
@@ -55,37 +55,34 @@ function knicktools_OpeningFcn(hObject, eventdata, handles, varargin)
 % Choose default command line output for knicktools
 handles.output = hObject;
 handles.catchments_shapefile = [];
+handles.prj_path = [];
 handles.dem = [];
 handles.dem_obj = [];
-handles.dam_handle = [];
+handles.dem_info = [];
+handles.dem_handle = [];
 handles.flow_acc = [];
 handles.current_catchment = [];
+handles.current_identifier = [];
+handles.identifiers = [];
 handles.text_handles = [];
 handles.catchment_handles = [];
 handles.catchment_dems = [];
+handles.catchment_info = [];
 handles.backdrop_raster = [];
+handles.backdrop_obj = [];
 handles.backdrop_handle = [];
+handles.backdrop_info = [];
 handles.view_mode = 'dem';
+handles.preview_pane = [];
+handles.enable_preview_pane = 0;
+handles.bounding_box = [];
 
-handles.catchment_overview = knicktools_createMapOverview(handles);
-disp(handles)
 % Update handles structure
 guidata(hObject, handles);
 
 % UIWAIT makes knicktools wait for user response (see UIRESUME)
 % uiwait(handles.figure1);
 
-
-function overview = knicktools_createMapOverview(handles)
-    overview = axesm('MapProjection','utm');
-    set(overview, 'Position',[7.8 5.615 152.2 44.692], 'Tag',...
-        'catchment_overview', 'Box', 'on', 'BoxStyle', 'full','Parent', ...
-        handles.output);
-
-%     overview = axesm('MapProjection','utm');
-%     set(overview, 'Position',[7.8 5.615 152.2 44.692], 'Tag',...
-%         'catchment_overview', 'Box', 'on', 'BoxStyle', 'full','Parent', ...
-%         handles.output);
     
 % --- Outputs from this function are returned to the command line.
 function varargout = knicktools_OutputFcn(hObject, eventdata, handles) 
@@ -97,35 +94,35 @@ function varargout = knicktools_OutputFcn(hObject, eventdata, handles)
 % Get default command line output from handles structure
 varargout{1} = handles.output;
 
+function knicktools_UpdateBoundingBox(handles)
+    
+    guidata(handles.output, handles);
+    
 function knicktools_PopulateList(handles, attr)
     S = shaperead(handles.catchments_shapefile);
-    disp(attr)
-    
+
     shape_attr = fieldnames(S);
-    disp(shape_attr)
     id_n = find(strcmpi(shape_attr,attr));
     
-    disp(id_n)
     af = shape_attr{id_n};
 
     attribs_list = {};
     for i = 1:numel(S)
         attribs_list = [attribs_list; num2str(S(i).(af))];
     end
-    
-    set(handles.catchment_lists, 'String', attribs_list);
-    
+    set(handles.catchment_lists, 'String', attribs_list); 
 
 function knicktools_ProcessDEM(handles)
     handles.dem_obj = GRIDobj(handles.dem);
     handles.view_mode = 'dem';
-    guidata(handles.output, handles);
+    handles.dem_info = geotiffinfo(handles.dem);
+    guidata(handles.output, handles)
     knicktools_CatchmentOverviewUpdate(handles, 1);
     
 
-
 function knicktools_ProcessBackdrop(handles, raster_path)
 
+handles.backdrop_obj = GRIDobj(raster_path);
 [raster, D] = geotiffread(raster_path);
 R = raster(:,:,1);
 G = raster(:,:,2);
@@ -157,22 +154,24 @@ function knicktools_ProcessCatchments(handles)
     handles.catchment_dems = cell(numel(S), 1);
     
     text_handles = {};
+    ids = [];
     for i = 1:numel(S)
        c = S(i);
        c1 = c.BoundingBox(1,:);
        c2 = c.BoundingBox(2,:);
        cc = [(c1(1)+c2(1))/2, (c1(2)+c2(2))/2];
        t = text(cc(1),cc(2),num2str(c.ID));
+       ids = [ids;c.ID];
        set(t, 'FontSize', 7);
        text_handles = [text_handles; t];
     end
     
+    handles.identifiers = ids;
     handles.text_handles = text_handles;
 
 	shape_attr = fieldnames(S);
     id_n = find(strcmpi(shape_attr,'ID'));
-
-    attribs = shape_attr(id_n:end);
+    attribs = shape_attr(5:end);
     set(handles.catchment_id_chooser, 'String', attribs);
     
     guidata(handles.output, handles);
@@ -197,8 +196,10 @@ function knicktools_cropDEM(handles, S, idx)
         mask = poly2mask(c,r,DEM.size(1),DEM.size(2));
 
         DEM.Z(find(mask==0)) = NaN;
-
+        
         cDEM = crop(DEM, mask);
+        FD = FLOWobj(cDEM, 'preprocess', 'carve');
+        cDEM = imposemin(FD,cDEM,0.0001);
 
         handles.catchment_dems{idx} = cDEM;
         
@@ -210,24 +211,32 @@ function knicktools_cropDEM(handles, S, idx)
     
 function knicktools_previewPlot(handles, idx)
 
+    cDEM= handles.catchment_dems{idx};
+    FD = FLOWobj(cDEM, 'preprocess', 'carve');
     
-    
-    cDEM = handles.catchment_dems{idx};
-    FD = FLOWobj(cDEM);
-
     % Flow Accumulation
     A = flowacc(FD);
 
     % Streams
-    S1 = STREAMobj(FD,A>300);
+    S1 = STREAMobj(FD,A>500);
+    handles.streams = S1;
     S1 = klargestconncomps(S1);
     T = trunk(S1);
     
+    if handles.enable_preview_pane > 0
+        if isempty(handles.preview_pane) > 0
+            handles.preview_pane = preview_pane(T, cDEM);
+        else
+            if ishandle(handles.preview_pane)
+                handles.preview_pane.Update(T, cDEM);
+            else
+                handles.preview_pane = preview_pane(T, cDEM);
+            end
+        end
+    end
 
-    axes(handles.profile_preview);
-    cla(handles.profile_preview);
-    plotdz(T,cDEM);
-    title('Stream profile elevation');
+    guidata(handles.output, handles);
+
        
     
 function knicktools_CatchmentOverviewTextUpdate(handles, attr)
@@ -236,11 +245,12 @@ function knicktools_CatchmentOverviewTextUpdate(handles, attr)
     S = shaperead(handles.catchments_shapefile);
     
      for k = 1:numel(handles.text_handles)
-        delete(handles.text_handles(k))
+        th = handles.text_handles(k);
+        delete(th)
      end
      
      text_handles = {};
-     
+     handles.identifiers = cellstr(get(handles.catchment_lists,'String'));
      for i = 1:numel(S)
         c = S(i);
         c1 = c.BoundingBox(1,:);
@@ -258,6 +268,23 @@ function knicktools_CatchmentOverviewUpdate(handles, full_refresh)
     axes(handles.catchment_overview);
     cla;
     
+    if isempty(handles.dem_handle) < 1
+        delete(handles, 'dem_handle');
+    end
+
+    if isempty(handles.backdrop_handle) < 1
+        delete(handles, 'backdrop_handle');
+    end
+    
+    if isempty(handles.catchment_handles) < 1
+        for k = 1:numel(handles.catchment_handles)
+            ct = handles.catchment_handles(k);
+            delete(ct);
+        end
+        handles.catchment_handles = [];
+    end
+    guidata(handles.output, handles);
+   
     if full_refresh > 0
         if strcmp(handles.view_mode, 'dem') > 0
             if isempty(handles.dem_obj) < 1
@@ -270,12 +297,15 @@ function knicktools_CatchmentOverviewUpdate(handles, full_refresh)
             end
         else
             if isempty(handles.backdrop_raster) < 1
-                handles.backdrop_handle = mapshow(handles.backdrop_raster{1}, handles.backdrop_raster{2});
+                [x,y] = refmat2XY(handles.backdrop_obj.refmat, ...
+                    handles.backdrop_obj.size);
+                handles.backdrop_handle = image(x,y, ...
+                    handles.backdrop_raster{1});
             end
         end
 
         if isempty(handles.catchments_shapefile) < 1
-            geoshow(handles.catchments_shapefile,'FaceColor',[0.5 1.0 0.5])
+            knicktools_ProcessCatchments(handles);
         end
     end
     
@@ -308,8 +338,9 @@ function knicktools_SelectCatchment(handles)
         end    
     end
     
-   
-    
+function knicktools_SaveProjection(handles, prj_path)
+    handles.prj_data = fileread(prj_path);
+    guidata(handles.output, handles);
 % --------------------------------------------------------------------
 function config_options_Callback(hObject, eventdata, handles)
 % hObject    handle to config_options (see GCBO)
@@ -340,6 +371,9 @@ function catchment_lists_Callback(hObject, eventdata, handles)
 % Hints: contents = cellstr(get(hObject,'String')) returns catchment_lists contents as cell array
 %        contents{get(hObject,'Value')} returns selected item from catchment_lists
     handles.current_catchment = get(hObject,'Value');
+    
+    contents = cellstr(get(hObject,'String'));
+    handles.current_identifier =  contents{get(hObject,'Value')};
     guidata(handles.output, handles);
     knicktools_SelectCatchment(handles);
     
@@ -468,7 +502,10 @@ function knickpoint_analysis_Callback(hObject, eventdata, handles)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    structure with handles and user data (see GUIDATA)
     if isempty(handles.current_catchment) < 1
-        kp_menu(handles.catchment_dems{handles.current_catchment});
+        S = shaperead(handles.catchments_shapefile);
+        kp_menu(handles.catchment_dems{handles.current_catchment}, ...
+            S(handles.current_catchment), handles.current_identifier, ...
+            handles.prj_data);
     end
 
 
@@ -505,30 +542,65 @@ function processAllCatchments_Callback(hObject, eventdata, handles)
 % hObject    handle to processAllCatchments (see GCBO)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    structure with handles and user data (see GUIDATA)
+    
+    output_location = uigetdir;
+    
+    S = shaperead(handles.catchments_shapefile);
+    
+    for i = 1:numel(S)
+        
+        poly = S(i);
+        
+        polyarea(poly.X, poly.Y)
+        DEM = handles.dem_obj;
+        
+        [r,c] = coord2sub(DEM,poly.X,poly.Y);
 
+        %Remove NaNs
+        n = find(isnan(r));
+        r(n) = [];
+        c(n) = [];
 
+        % convert points outside catchment poly to NaN
+        mask = poly2mask(c,r,DEM.size(1),DEM.size(2));
+
+        DEM.Z(find(mask==0)) = NaN;
+        
+        cDEM = crop(DEM, mask);
+        
+        FD = FLOWobj(cDEM, 'preprocess','carve');
+        cDEM = imposemin(FD,cDEM,0.0001);
+
+        % Flow Accumulation
+        A = flowacc(FD);       
+        S1 = STREAMobj(FD,A>500);
+        handles.streams = S1;
+        S1 = klargestconncomps(S1);
+        T = trunk(S1);        
+        identifier = handles.identifiers(i);
+        axes(handles.catchment_overview);
+        hold on;
+        plot(T);
+        stream_profiler(poly, cDEM,[T], ...
+            identifier, output_location, [], ...
+            handles.prj_data, [0 1 1 1])
+    end
 % --- Executes on button press in dem_viewchooser.
 function dem_viewchooser_Callback(hObject, eventdata, handles)
 % hObject    handle to dem_viewchooser (see GCBO)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    structure with handles and user data (see GUIDATA)
-
+    set(handles.dem_handle,'visible','on')
+    set(handles.backdrop_handle,'visible','off')
 
 % --- Executes on button press in backdrop_viewchooser.
 function backdrop_viewchooser_Callback(hObject, eventdata, handles)
 % hObject    handle to backdrop_viewchooser (see GCBO)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    structure with handles and user data (see GUIDATA)
-
-
-% --- Executes on button press in projection_chooser.
-function projection_chooser_Callback(hObject, eventdata, handles)
-% hObject    handle to projection_chooser (see GCBO)
-% eventdata  reserved - to be defined in a future version of MATLAB
-% handles    structure with handles and user data (see GUIDATA)
-axes(handles.catchment_overview);
-axesmui
-
+    set(handles.dem_handle,'visible','off')
+    set(handles.backdrop_handle,'visible','on')
+    
 function edit4_Callback(hObject, eventdata, handles)
 % hObject    handle to edit4 (see GCBO)
 % eventdata  reserved - to be defined in a future version of MATLAB
@@ -549,3 +621,62 @@ function edit4_CreateFcn(hObject, eventdata, handles)
 if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
     set(hObject,'BackgroundColor','white');
 end
+
+
+% --- Executes on button press in preview_pane.
+function preview_pane_Callback(hObject, eventdata, handles)
+% hObject    handle to preview_pane (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+
+
+% --- Executes on button press in show_preview_pane.
+function show_preview_pane_Callback(hObject, eventdata, handles)
+% hObject    handle to show_preview_pane (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+
+% Hint: get(hObject,'Value') returns toggle state of show_preview_pane
+if get(hObject,'Value') > 0
+    handles.enable_preview_pane = 1; 
+else
+    handles.enable_preview_pane = 0;
+    if ishandle(handles.preview_pane)
+        close(handles.preview_pane);
+    end
+end
+guidata(handles.output, handles);
+
+
+
+function projection_path_Callback(hObject, eventdata, handles)
+% hObject    handle to projection_path (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+
+% Hints: get(hObject,'String') returns contents of projection_path as text
+%        str2double(get(hObject,'String')) returns contents of projection_path as a double
+
+
+% --- Executes during object creation, after setting all properties.
+function projection_path_CreateFcn(hObject, eventdata, handles)
+% hObject    handle to projection_path (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    empty - handles not created until after all CreateFcns called
+
+% Hint: edit controls usually have a white background on Windows.
+%       See ISPC and COMPUTER.
+if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
+    set(hObject,'BackgroundColor','white');
+end
+
+
+% --- Executes on button press in select_projection_file.
+function select_projection_file_Callback(hObject, eventdata, handles)
+% hObject    handle to select_projection_file (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+[filename,pathname] = uigetfile('*.prj', 'Select projection file');
+prj_path = fullfile(pathname, filename);
+set(handles.projection_path,'String',filename)
+knicktools_SaveProjection(handles, prj_path);
