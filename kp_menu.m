@@ -22,7 +22,7 @@ function varargout = kp_menu(varargin)
 
 % Edit the above text to modify the response to help kp_menu
 
-% Last Modified by GUIDE v2.5 12-Oct-2016 00:00:26
+% Last Modified by GUIDE v2.5 27-Oct-2016 14:42:03
 
 % Begin initialization code - DO NOT EDIT
 gui_Singleton = 1;
@@ -95,6 +95,13 @@ handles.T = T;
 handles.elevation = elevation;
 handles.distance = dist;
 handles.cDEM = handles.dem;
+handles.ksn_shapefile = get(handles.ksn_shapefile_btn,'Value');
+handles.plots_btn = get(handles.plots_btn,'Value');
+handles.location_choice = get(handles.kp_location_choice,'Value');
+handles.ksn_choice = get(handles.ksn_choice_btn,'Value');
+
+
+set(varargin{5},'Pointer','arrow');
 
 % Update handles structure
 guidata(hObject, handles);
@@ -132,9 +139,15 @@ function process_knickpoints(handles, output_location)
        end
     end
     identifier = get(handles.name_box,'String');
+    % export_options(1) = knickpoint text
+    % export_options(2) = Ksn data
+    % export_options(3) = Ksn shapefile
+    % export_options(4) = Plots
+    export_options = [handles.location_choice, handles.ksn_choice,...
+        handles.ksn_shapefile, handles.plots_btn]; 
     stream_profiler(handles.poly, handles.dem, stream_objs, ...
         identifier, output_location, handles.knickpoints, ...
-        handles.projection, [1 1 1 1])
+        handles.projection, export_options);
 
 % --- Outputs from this function are returned to the command line.
 function varargout = kp_menu_OutputFcn(hObject, eventdata, handles) 
@@ -155,6 +168,8 @@ function save_btn_Callback(hObject, eventdata, handles)
 if isempty(handles.knickpoints) < 1
     output_location = uigetdir;
     process_knickpoints(handles, output_location);
+else
+    msgbox('Please select some knickpoints');
 end
 
 % --- Executes on selection change in listbox1.
@@ -291,19 +306,38 @@ if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgr
 end
 
 
-% --- Executes on button press in ksn_shapefile_btn.
-function ksn_shapefile_btn_Callback(hObject, eventdata, handles)
-% hObject    handle to ksn_shapefile_btn (see GCBO)
+function ksn_choice_btn_Callback(hObject, eventdata, handles)
+% hObject    handle to plots_btn (see GCBO)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    structure with handles and user data (see GUIDATA)
 
-% Hint: get(hObject,'Value') returns toggle state of ksn_shapefile_btn
+% Hint: get(hObject,'Value') returns toggle state of plots_btn
+handles.ksn_choice = get(hObject,'Value');
+guidata(handles.output, handles);
 
+function kp_location_choice_Callback(hObject, eventdata, handles)
+% hObject    handle to plots_btn (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
 
-% --- Executes on button press in plots_btn.
+% Hint: get(hObject,'Value') returns toggle state of plots_btn
+handles.location_choice = get(hObject,'Value');
+guidata(handles.output, handles);
+
+function ksn_shapefile_btn_Callback(hObject, eventdata, handles)
+% hObject    handle to plots_btn (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+
+% Hint: get(hObject,'Value') returns toggle state of plots_btn
+handles.ksn_shapefile = get(hObject,'Value');
+guidata(handles.output, handles);
+
 function plots_btn_Callback(hObject, eventdata, handles)
 % hObject    handle to plots_btn (see GCBO)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    structure with handles and user data (see GUIDATA)
 
 % Hint: get(hObject,'Value') returns toggle state of plots_btn
+handles.plots_btn = get(hObject,'Value');
+guidata(handles.output, handles);

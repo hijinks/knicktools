@@ -55,7 +55,8 @@ function knicktools_OpeningFcn(hObject, eventdata, handles, varargin)
 % Choose default command line output for knicktools
 handles.output = hObject;
 handles.catchments_shapefile = [];
-handles.prj_path = [];
+handles.prj_file_path = [];
+handles.prj_data = [];
 handles.dem = [];
 handles.dem_obj = [];
 handles.dem_info = [];
@@ -113,10 +114,16 @@ function knicktools_PopulateList(handles, attr)
     set(handles.catchment_lists, 'String', attribs_list); 
 
 function knicktools_ProcessDEM(handles)
-    handles.dem_obj = GRIDobj(handles.dem);
+    h = waitbar(0,'Loading DEM');
+    DEM = GRIDobj(handles.dem);
+    waitbar(.3, h, 'Checking DEM mask');
+    DEM.Z(DEM.Z<0) = NaN;
+    waitbar(.6, h, 'Cropping DEM');
+    handles.dem_obj = crop(DEM);
     handles.view_mode = 'dem';
     handles.dem_info = geotiffinfo(handles.dem);
     guidata(handles.output, handles)
+    close(h);
     knicktools_CatchmentOverviewUpdate(handles, 1);
     
 
@@ -237,7 +244,6 @@ function knicktools_previewPlot(handles, idx)
 
     guidata(handles.output, handles);
 
-       
     
 function knicktools_CatchmentOverviewTextUpdate(handles, attr)
     axes(handles.catchment_overview);
@@ -269,7 +275,7 @@ function knicktools_CatchmentOverviewUpdate(handles, full_refresh)
     cla;
     
     if isempty(handles.dem_handle) < 1
-        delete(handles, 'dem_handle');
+        delete(handles.dem_handle);
     end
 
     if isempty(handles.backdrop_handle) < 1
@@ -286,6 +292,7 @@ function knicktools_CatchmentOverviewUpdate(handles, full_refresh)
     guidata(handles.output, handles);
    
     if full_refresh > 0
+        
         if strcmp(handles.view_mode, 'dem') > 0
             if isempty(handles.dem_obj) < 1
                 handles.dem_handle = imagesc(handles.dem_obj);
@@ -303,7 +310,7 @@ function knicktools_CatchmentOverviewUpdate(handles, full_refresh)
                     handles.backdrop_raster{1});
             end
         end
-
+                
         if isempty(handles.catchments_shapefile) < 1
             knicktools_ProcessCatchments(handles);
         end
@@ -313,7 +320,7 @@ function knicktools_CatchmentOverviewUpdate(handles, full_refresh)
 
 function knicktools_SelectCatchment(handles)
     axes(handles.catchment_overview);
-    
+    set(gcf,'Pointer','watch');
     if isempty(handles.current_catchment) < 1
          for k = 1:numel(handles.catchment_handles)
             if k == handles.current_catchment
@@ -335,11 +342,16 @@ function knicktools_SelectCatchment(handles)
                 knicktools_previewPlot(handles, handles.current_catchment);
             end
             
-        end    
+        end
+        set(gcf,'Pointer','arrow');
     end
     
-function knicktools_SaveProjection(handles, prj_path)
-    handles.prj_data = fileread(prj_path);
+function knicktools_SaveProjection(handles)
+    if isempty(handles.prj_file_path) < 1
+       handles.prj_data = fileread(handles.prj_file_path);
+    else
+       msgbox('Please select projection file');
+    end
     guidata(handles.output, handles);
 % --------------------------------------------------------------------
 function config_options_Callback(hObject, eventdata, handles)
@@ -501,11 +513,18 @@ function knickpoint_analysis_Callback(hObject, eventdata, handles)
 % hObject    handle to knickpoint_analysis (see GCBO)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    structure with handles and user data (see GUIDATA)
-    if isempty(handles.current_catchment) < 1
-        S = shaperead(handles.catchments_shapefile);
-        kp_menu(handles.catchment_dems{handles.current_catchment}, ...
-            S(handles.current_catchment), handles.current_identifier, ...
-            handles.prj_data);
+    if isempty(handles.current_catchment) < 1        
+        if isempty(handles.prj_data) < 1
+            set(gcf,'Pointer','watch');
+            S = shaperead(handles.catchments_shapefile);
+            kp_menu(handles.catchment_dems{handles.current_catchment}, ...
+                S(handles.current_catchment), handles.current_identifier, ...
+                handles.prj_data, gcf);
+        else
+           msgbox('Missing projection file','Error');
+        end
+    else
+        msgbox('Please select a catchment','Error');
     end
 
 
@@ -545,6 +564,8 @@ function processAllCatchments_Callback(hObject, eventdata, handles)
     
     output_location = uigetdir;
     
+    [h, export_options] = kp_export;
+    
     S = shaperead(handles.catchments_shapefile);
     
     for i = 1:numel(S)
@@ -583,7 +604,7 @@ function processAllCatchments_Callback(hObject, eventdata, handles)
         plot(T);
         stream_profiler(poly, cDEM,[T], ...
             identifier, output_location, [], ...
-            handles.prj_data, [0 1 1 1])
+            handles.prj_data, export_options);
     end
 % --- Executes on button press in dem_viewchooser.
 function dem_viewchooser_Callback(hObject, eventdata, handles)
@@ -679,4 +700,6 @@ function select_projection_file_Callback(hObject, eventdata, handles)
 [filename,pathname] = uigetfile('*.prj', 'Select projection file');
 prj_path = fullfile(pathname, filename);
 set(handles.projection_path,'String',filename)
-knicktools_SaveProjection(handles, prj_path);
+handles.prj_file_path = prj_path;
+guidata(handles.output, handles);
+knicktools_SaveProjection(handles);
