@@ -85,8 +85,8 @@ axes(handles.slope_axes);
 h = plotdz(T, handles.dem);
 
 elevation = get(h,'YData');
-dist = distance(T,'from_outlet');
-dist = [dist; 0.001];
+dist = get(h,'XData');
+
 
 handles.FD = FD;
 handles.A = A;
@@ -113,26 +113,34 @@ function process_knickpoints(handles, output_location)
     s = size(handles.knickpoints);
     stream_objs = {};
     
+    % Sort knickpoints by distance from outlet
+    knickpoints_sorted = sortrows(handles.knickpoints,6);
+    
     for k = 1:s(1)
-       kd = handles.knickpoints(k, :);
+       kd = knickpoints_sorted(k, :);
+       
        if s(1) == 1
+
             S1 = modify(handles.T,'distance', [0, kd(5)]);
             S2 = modify(handles.T,'distance', [kd(5), max(handles.distance)]);
             stream_objs = [stream_objs; S1; S2];      
        else
-           if k < 2 
+           if k == 1 
                 % Starting knickpoint
                 S = modify(handles.T,'distance', [0, kd(5)]);
                 stream_objs = [stream_objs; S];
 
            elseif k == max(s(1))
                 % Last knickpoint
-                kd2 = handles.knickpoints(k-1, :);
+                kd2 = knickpoints_sorted(k-1, :);
+                % From previous knickpoint to current knickpoint
                 S1 = modify(handles.T,'distance', [kd2(5), kd(5)]);
+                % From current knickpoint
                 S2 = modify(handles.T,'distance', [kd(5), max(handles.distance)]);
                 stream_objs = [stream_objs; S1; S2];
            else
-                kd2 = handles.knickpoints(k-1, :);
+                % Middle knickpoints
+                kd2 = knickpoints_sorted(k-1, :);
                 S = modify(handles.T,'distance', [kd2(5), kd(5)]);
                 stream_objs = [stream_objs; S];
            end
@@ -213,6 +221,8 @@ h = plotdz(handles.T, handles.dem);
 
 [x,y]= getpts;
 
+%Fires when return key is pressed
+
 cla(handles.catchment_axes,'reset');
 
 axes(handles.catchment_axes);
@@ -230,19 +240,26 @@ for k=1:length(x)
 
     xdiff = abs(handles.distance-x1);
     ydiff = abs(handles.elevation'-y1);
-    [~, xI] = min(xdiff+ydiff);
+    [~, ax_I] = min(xdiff'+ydiff); % slope axes that's closest
     
     axes(handles.slope_axes);
     hold on;
     
-    plot(handles.distance(xI), handles.elevation(xI), 'rd');
+    plot(handles.distance(ax_I), handles.elevation(ax_I), 'rd');
     
-    lx = length(handles.T.x);
-    coordX = handles.T.x(xI);
-    coordY = handles.T.y(xI);
+    % Now we need to find the real closest node in the stream object
+    
+    min_diff = abs(handles.T.distance-handles.distance(ax_I));
+    Ix = find(abs(min_diff)==abs(min(min_diff)));
+    
+    coordX = handles.T.x(Ix);
+    coordY = handles.T.y(Ix);
     axes(handles.catchment_axes);
     
-    kp_data = [kp_data; [coordX, coordY, lx-xI, xI, handles.distance(xI), handles.elevation(xI)]];
+    % knickpoint columns
+    % x coordinate, y coodinate, length - node,  node,   distance,   elevation
+    % kd(1),        kd(2),       kd(3),          kd(4),  kd(5),      kd(6)
+    kp_data = [kp_data; [coordX, coordY, 0, Ix, handles.distance(ax_I), handles.elevation(ax_I)]];
     
     hold on;
     

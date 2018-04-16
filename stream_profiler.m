@@ -44,8 +44,21 @@ function stream_profiler(poly, DEM, stream_objects, identifier, output_location,
         ix = ix+1;
         
         fname = [output_location ,filesep, identifier,'_knickpoints.txt'];
-        x = knickpoints(:,1);
-        y = knickpoints(:,2);
+        
+        x = zeros(length(stream_objects)-1,1);
+        y = zeros(length(stream_objects)-1,1);
+        
+        for p=2:length(stream_objects)
+            n = p-1;
+            if p == length(stream_objects)
+                x(n) = stream_objects(p).x(1);
+                y(n) = stream_objects(p).y(1);                
+            else
+                x(n) = stream_objects(p).x(end);
+                y(n) = stream_objects(p).y(end);
+            end
+        end
+        
         z = knickpoints(:,6);
         writetable(table(x,y,z),fname);
     end
@@ -169,7 +182,7 @@ function stream_profiler(poly, DEM, stream_objects, identifier, output_location,
         
         
         local_slope = gradient(S, cDEM);
-        distance = S.distance;
+        outlet_distance = distance(S,'from_outlet');
         x = S.x;
         y = S.y;
         upstream_area = a;
@@ -177,7 +190,7 @@ function stream_profiler(poly, DEM, stream_objects, identifier, output_location,
         
         if export_options(2)
             waitbar((1/k)*kn(ix), h, 'Saving Ksn data');
-            results = table(distance, x, y, elevation, local_slope, upstream_area, ksn);
+            results = table(outlet_distance, x, y, elevation, local_slope, upstream_area, ksn);
             writetable(results,[output_location, filesep, identifier,'_', num2str(p), '.csv']);
         end
     end

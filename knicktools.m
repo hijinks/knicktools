@@ -177,7 +177,7 @@ function knicktools_ProcessCatchments(handles)
     handles.text_handles = text_handles;
 
 	shape_attr = fieldnames(S);
-    id_n = find(strcmpi(shape_attr,'ID'));
+    id_n = find(strcmpi(shape_attr,'FID'));
     attribs = shape_attr(5:end);
     set(handles.catchment_id_chooser, 'String', attribs);
     
