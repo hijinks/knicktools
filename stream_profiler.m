@@ -80,13 +80,15 @@ function stream_profiler(poly, DEM, stream_objects, identifier, output_location,
     G   = gradient8(cDEM);
     
     if export_options(1)
-        ixx = 2;
-    else
-        ixx = 1;
+        fname = [output_location, filesep, identifier,'_knickpoints.txt'];
+        x = knickpoints(:,1);
+        y = knickpoints(:,2);
+        z = knickpoints(:,6);
+        writetable(table(x,y,z),fname);
     end
         
     for p=1:length(stream_objects)
-        ix = ixx;
+        ix = 1;
         % Upstream area
         S = stream_objects(p);
         a = A.Z(S.IXgrid).*(A.cellsize).^2;
@@ -96,7 +98,7 @@ function stream_profiler(poly, DEM, stream_objects, identifier, output_location,
 
         % Localised KSN
         KSN = G./(A.*(A.cellsize^2)).^-.45;
-        ksn = demprofile(KSN,numel(S.x),S.x,S.y);
+        [x,y,ksn] = STREAMobj2XY(S,KSN);
 
         MS = STREAMobj2mapstruct(S,'seglength',aggregrate_ksn_length,'attributes',...
         {'ksn' KSN @mean 'uparea' (A.*(A.cellsize^2)) @mean 'gradient' G @mean});
@@ -119,20 +121,20 @@ function stream_profiler(poly, DEM, stream_objects, identifier, output_location,
 
                 kn = kn+1;
 
-                f1 = figure('Menubar','none');
-                set(f1,'visible','off');
-                set(f1, 'PaperSize',[X X]);
-                set(f1, 'PaperPosition',[0 xMargin xSize xSize])
-                set(f1, 'PaperUnits','centimeters');
-
-                symbolspec = makesymbolspec('line',...
-                    {'ksn' [min([MS.ksn]) max([MS.ksn])] 'color' jet(6)});
-                colorbar;
-                imageschs(cDEM,cDEM,'colormap',gray,'colorbar',false);
-                mapshow(MS,'SymbolSpec',symbolspec);
-                caxis([min([MS.ksn]) max([MS.ksn])]);
-                contourcbar;
-                print(f1,[output_location ,filesep, identifier,'_',num2str(p),'_ksn_plot'], '-dpdf');
+%                 f1 = figure('Menubar','none');
+%                 set(f1,'visible','off');
+%                 set(f1, 'PaperSize',[X X]);
+%                 set(f1, 'PaperPosition',[0 xMargin xSize xSize])
+%                 set(f1, 'PaperUnits','centimeters');
+% 
+%                 symbolspec = makesymbolspec('line',...
+%                     {'ksn' [min([MS.ksn]) max([MS.ksn])] 'color' jet(6)});
+%                 colorbar;
+%                 imageschs(cDEM,cDEM,'colormap',gray,'colorbar',false);
+%                 mapshow(MS,'SymbolSpec',symbolspec);
+%                 caxis([min([MS.ksn]) max([MS.ksn])]);
+%                 contourcbar;
+%                 print(f1,[output_location ,filesep, identifier,'_',num2str(p),'_ksn_plot'], '-dpdf');
 
                 f2 = figure('Menubar','none');
                 set(f2,'visible','off');
@@ -172,8 +174,9 @@ function stream_profiler(poly, DEM, stream_objects, identifier, output_location,
                 axis normal
                 plotdz(S,cDEM);
                 title('Stream profile elevation');
-
-
+                
+                f2.Renderer = 'painters';
+                
                 print(f2,[output_location, filesep, identifier,'_',num2str(p), '_plots'], '-dpdf');
             catch exception
                waitfor(msgbox('PDF creation failed. Try increasing the Java Heap Size setting in the MATLAB preferences'));
@@ -190,10 +193,9 @@ function stream_profiler(poly, DEM, stream_objects, identifier, output_location,
         
         if export_options(2)
             waitbar((1/k)*kn(ix), h, 'Saving Ksn data');
-            results = table(outlet_distance, x, y, elevation, local_slope, upstream_area, ksn);
+            results = table(outlet_distance, x, y, elevation, local_slope, upstream_area, ksn(1:end-1));
             writetable(results,[output_location, filesep, identifier,'_', num2str(p), '.csv']);
         end
     end
     close(h);
 end
-  

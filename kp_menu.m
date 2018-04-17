@@ -59,7 +59,6 @@ handles.dem = varargin{1};
 handles.poly = varargin{2};
 handles.identifier = varargin{3};
 handles.projection = varargin{4};
-
 handles.knickpoints = [];
 
 set(handles.name_box, 'String', handles.identifier);
@@ -86,7 +85,6 @@ h = plotdz(T, handles.dem);
 
 elevation = get(h,'YData');
 dist = get(h,'XData');
-
 
 handles.FD = FD;
 handles.A = A;
@@ -156,6 +154,7 @@ function process_knickpoints(handles, output_location)
     stream_profiler(handles.poly, handles.dem, stream_objs, ...
         identifier, output_location, handles.knickpoints, ...
         handles.projection, export_options);
+ 
 
 % --- Outputs from this function are returned to the command line.
 function varargout = kp_menu_OutputFcn(hObject, eventdata, handles) 
@@ -215,6 +214,7 @@ function select_knickpoints_Callback(hObject, eventdata, handles)
 % hObject    handle to select_knickpoints (see GCBO)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    structure with handles and user data (see GUIDATA)
+handles.knickpoints = [];
 cla(handles.slope_axes,'reset')
 axes(handles.slope_axes);
 h = plotdz(handles.T, handles.dem);
@@ -241,7 +241,7 @@ for k=1:length(x)
     xdiff = abs(handles.distance-x1);
     ydiff = abs(handles.elevation'-y1);
     [~, ax_I] = min(xdiff'+ydiff); % slope axes that's closest
-    
+
     axes(handles.slope_axes);
     hold on;
     
@@ -266,17 +266,10 @@ for k=1:length(x)
     plot(coordX, coordY, 'rd');
 end
 
-
 handles.knickpoints = kp_data;
 guidata(handles.output, handles);
 
 % --------------------------------------------------------------------
-function Untitled_1_Callback(hObject, eventdata, handles)
-% hObject    handle to Untitled_1 (see GCBO)
-% eventdata  reserved - to be defined in a future version of MATLAB
-% handles    structure with handles and user data (see GUIDATA)
-
-
 
 function name_box_Callback(hObject, eventdata, handles)
 % hObject    handle to name_box (see GCBO)

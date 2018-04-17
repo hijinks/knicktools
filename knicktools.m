@@ -57,6 +57,7 @@ handles.output = hObject;
 handles.catchments_shapefile = [];
 handles.prj_file_path = [];
 handles.prj_data = [];
+handles.prj_path = [];
 handles.dem = [];
 handles.dem_obj = [];
 handles.dem_info = [];
@@ -111,6 +112,7 @@ function knicktools_PopulateList(handles, attr)
     for i = 1:numel(S)
         attribs_list = [attribs_list; num2str(S(i).(af))];
     end
+
     set(handles.catchment_lists, 'String', attribs_list); 
 
 function knicktools_ProcessDEM(handles)
@@ -243,7 +245,6 @@ function knicktools_previewPlot(handles, idx)
     end
 
     guidata(handles.output, handles);
-
     
 function knicktools_CatchmentOverviewTextUpdate(handles, attr)
     axes(handles.catchment_overview);
@@ -279,13 +280,12 @@ function knicktools_CatchmentOverviewUpdate(handles, full_refresh)
     end
 
     if isempty(handles.backdrop_handle) < 1
-        delete(handles, 'backdrop_handle');
+        delete(handles.backdrop_handle);
     end
     
     if isempty(handles.catchment_handles) < 1
         for k = 1:numel(handles.catchment_handles)
-            ct = handles.catchment_handles(k);
-            delete(ct);
+            delete(handles.catchment_handles(k));
         end
         handles.catchment_handles = [];
     end
@@ -353,6 +353,7 @@ function knicktools_SaveProjection(handles)
        msgbox('Please select projection file');
     end
     guidata(handles.output, handles);
+
 % --------------------------------------------------------------------
 function config_options_Callback(hObject, eventdata, handles)
 % hObject    handle to config_options (see GCBO)
@@ -382,10 +383,10 @@ function catchment_lists_Callback(hObject, eventdata, handles)
 
 % Hints: contents = cellstr(get(hObject,'String')) returns catchment_lists contents as cell array
 %        contents{get(hObject,'Value')} returns selected item from catchment_lists
-    handles.current_catchment = get(hObject,'Value');
-    
+    handles.current_catchment = get(hObject,'Value'); 
     contents = cellstr(get(hObject,'String'));
     handles.current_identifier =  contents{get(hObject,'Value')};
+
     guidata(handles.output, handles);
     knicktools_SelectCatchment(handles);
     
