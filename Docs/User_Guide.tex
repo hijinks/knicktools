@@ -1,0 +1,120 @@
+
+\documentclass[11pt]{report}
+\title{\bf{KnickTools} \protect\\ \texttt{version 0.2} \protect\\  \Huge\texttt{User Guide}}
+\usepackage{fontspec}
+\usepackage{titlesec}
+\usepackage{parskip}
+\usepackage[font=small,labelfont=bf]{caption, subcaption}
+\usepackage{float}
+\usepackage{natbib}
+\usepackage{hyperref}
+\usepackage{tabu}
+\usepackage{setspace}
+\usepackage{multirow}
+\usepackage{amsmath}
+\usepackage{booktabs}
+\usepackage[table,xcdraw]{xcolor}
+\usepackage{xcolor,colortbl}
+\usepackage{lscape}
+\usepackage{rotating}
+\usepackage{epstopdf}
+\usepackage{lineno,xcolor}
+% Running line numbers:
+\setlength\linenumbersep{5pt}
+\renewcommand\linenumberfont{\normalfont\tiny\sffamily\color{gray}}
+\makeatletter
+\def\ttl@mkchap@i#1#2#3#4#5#6#7{%
+  \ttl@assign\@tempskipa#3\relax\beforetitleunit
+  %\vspace*{\@tempskipa}% NEW
+  \global\@afterindenttrue
+  \ifcase#5 \global\@afterindentfalse\fi
+  \ttl@assign\@tempskipb#4\relax\aftertitleunit
+  \ttl@topmode{\@tempskipb}{%
+    \ttl@select{#6}{#1}{#2}{#7}}%
+  \ttl@finmarks  % Outside the box!
+  \@ifundefined{ttlp@#6}{}{\ttlp@write{#6}}}
+\makeatother
+
+\titleformat{\chapter}[display]
+    {\huge\bfseries}
+    {\Large\chaptertitlename\ \thechapter}
+    {0in}
+    {}
+\titlespacing*{\chapter}{0pt}{*0}{*0}
+
+\setmainfont{Helvetica Neue Light}
+\setlength{\parskip}{.5cm}
+
+\usepackage[a4paper, total={6in, 8.5in}]{geometry}
+\usepackage{setspace}
+\renewcommand{\baselinestretch}{1.5}
+
+\newcommand\gridfig[2]{%
+  \captionof*{subfigure}{}
+  \includegraphics[width=5.8cm]{#1}
+  \captionof{subfigure}{}\label{#2}%
+}
+
+\renewcommand{\bibname}{References}
+
+\newfloat{eqfloat}{h}{eqflts}
+\floatname{eqfloat}{Equation}
+
+\author{Sam Brooke\\
+  Department of Earth Science \& Engineering,\\
+  Imperial College,\\
+  London,\\ 
+  United Kingdom \\
+  \texttt{s.brooke14@imperial.ac.uk}
+  \\
+  \texttt{sam@kyru.co.uk}
+   }
+\date{\today}
+
+\newcounter{tmp}
+
+\begin{document}
+
+
+\maketitle
+
+\tableofcontents
+
+\chapter{Introduction}
+
+\section{Purpose}
+
+Geomorphic analysis increasingly leverages ever-improving remote-sensed datasets that provide excellent topographic resolution, anywhere in the world. With these data, we are able to model the hydrology of landscapes, e.g. where rivers form, their likely flow velocities and geometries, ultimately with a view to better understand how fluvial landscapes evolve toward equilibrium conditons or how they have responsed to a change in external boundary condition i.e. tectonic perturbations.
+
+With these challenges, we as geomorphologists need to develop better tools that enable us to examine landscapes in greater detail with whilst working efficiently. The analysis of field data can be a cumbersome task when operating GIS software that requires a high degree of repetative work and data management. In order to quickly retrieve scientific answers we could benefit with a rapid means to appraise landscapes and derive well-published comporable indices and tackle scientific rather than productivity problems.
+
+\section{MATLAB}
+
+MATLAB (Matrix Laboratory... I thought it was Maths Laboratory too) is a ubiqutious software package that provides an easy interface to an otherwise syntactically strange programming language. This aside, it is common to most all academic insititutions as a peice of pre-installed software. It is powerful and effective in handling numerical datasets and developing cross-platform scientific graphical applications.
+
+\section{TopoToolbox}
+
+The basis of the Knicktools application is the TopoToolbox framework.
+
+\chapter{Examples}
+
+\section{Stream Objects}
+
+
+
+\section{North Peloponnese}
+
+\chapter{Further reading}
+
+\section{}
+
+\section{North Peloponnese}
+
+
+\begin{footnotesize}
+\singlespacing
+\bibliographystyle{apalike}
+\bibliography{references}
+\end{footnotesize}
+
+\end{document}  
